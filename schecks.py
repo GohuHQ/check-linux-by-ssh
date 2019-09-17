@@ -71,13 +71,14 @@ def get_client(opts):
     ssh_key_file = opts.ssh_key_file
     user = opts.user
     passphrase = opts.passphrase
+    password = opts.password
     
     # Ok now connect, and try to get values for memory
-    client = connect(hostname, port, ssh_key_file, passphrase, user)
+    client = connect(hostname, port, ssh_key_file, passphrase, user, password)
     return client
     
 
-def connect(hostname, port, ssh_key_file, passphrase, user):
+def connect(hostname, port, ssh_key_file, passphrase, user, password):
     # If we are in a localhost case, don't play with ssh
     if is_local(hostname):
         return LocalExec()
@@ -87,11 +88,6 @@ def connect(hostname, port, ssh_key_file, passphrase, user):
         print "ERROR : this plugin needs the python-paramiko module. Please install it"
         sys.exit(2)
     
-    if not os.path.exists(os.path.expanduser(ssh_key_file)):
-        err = "Error : missing ssh key file. please specify it with -i parameter"
-        raise Exception(err)
-
-    ssh_key_file = os.path.expanduser(ssh_key_file)
     client = paramiko.SSHClient()
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy()) 
@@ -102,7 +98,17 @@ def connect(hostname, port, ssh_key_file, passphrase, user):
         with open(user_config_file) as f:
             ssh_config.parse(f)
 
-    cfg = {'hostname': hostname, 'port': port, 'username': user, 'key_filename': ssh_key_file, 'password': passphrase}
+    cfg = {'hostname': hostname, 'port': port, 'username': user}
+    if password:
+        {'password': password}
+    else:
+        if not os.path.exists(os.path.expanduser(ssh_key_file)):
+            err = "Error : missing ssh key file. please specify it with -i parameter"
+            raise Exception(err)
+
+        ssh_key_file = os.path.expanduser(ssh_key_file)
+        {'key_filename': ssh_key_file, 'password': passphrase}
+
 
     user_config = ssh_config.lookup(cfg['hostname'])
     for k in ('hostname', port, 'username', 'key_filename', 'password'):
@@ -162,6 +168,8 @@ def get_parser():
                       dest="user", help='remote use to use. By default shinken.')
     parser.add_option('-P', '--passphrase', default='',
                       dest="passphrase", help='SSH key passphrase. By default will use void')
+    parser.add_option('--password', default='',
+                      dest="password", help='SSH password. By default will use void')
     parser.add_option('-t',
                       dest="modname", help='Check to load')
     parser.add_option('-l', action='store_true',
